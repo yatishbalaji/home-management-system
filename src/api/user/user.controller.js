@@ -51,7 +51,23 @@ async function login(req, res, next) {
     }
 }
 
+async function index(req, res, next) {
+    try {
+        const reqUser = req.user;
+
+        const users = await UserModel.find({
+            _id: reqUser._id
+        })
+            .select({ devices: 1 });
+
+        return res.json(users);
+    } catch (err) {
+        return next(err);
+    }
+}
+
 module.exports = {
     create,
     login,
+    index,
 };
