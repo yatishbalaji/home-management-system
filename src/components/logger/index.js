@@ -3,7 +3,6 @@ const DailyRotateFile = require('winston-daily-rotate-file');
 
 const { NODE_ENV, root } = require('../../config/environment');
 
-console.log(root);
 const logger = winston.createLogger({
   transports: [
     new DailyRotateFile({
