@@ -25,7 +25,8 @@ const DeviceSchema = new Schema({
     name: { type: String },
     type: { type: String },
     state: { type: String },
-    created_on: { type: Date, default: Date.now }
+    created_on: { type: Date, default: Date.now },
+    deleted_on: { type: Date, default: null },
 });
 
 const DeviceOperationSchema = new Schema({

@@ -53,16 +53,19 @@ async function login(req, res, next) {
     }
 }
 
-async function index(req, res, next) {
+async function getDevices(req, res, next) {
     try {
         const reqUser = req.user;
 
-        const users = await UserModel.findOne({
-            _id: reqUser._id
-        })
-            .select({ devices: 1 });
+        const findQuery = [
+            { $unwind :'$devices'},
+            { $match : {'devices.deleted_on': null, _id: reqUser._id, }},
+            { $project : { _id: '$devices._id', name : '$devices.name', type : '$devices.type', state : '$devices.state' } },
+        ]
+        
+        const devices = await UserModel.aggregate(findQuery)
 
-        return res.json(users);
+        return res.json(devices);
     } catch (err) {
         return next(err);
     }
@@ -102,9 +105,10 @@ async function commandDevice(req, res, next) {
         const reqUser = req.user;
 
         const {
-            device_id,
             command
         } = req.body;
+
+        const { id: device_id } = req.params;
 
         if (!device_id || !command) {
             return res.status(412).json({ message: 'Required fields missing' });
@@ -134,10 +138,35 @@ async function commandDevice(req, res, next) {
     }
 }
 
+async function deleteDevice(req, res, next) {
+    try {
+        const reqUser = req.user;
+        const { id: device_id } = req.params;
+
+        if (!device_id) {
+            return res.status(412).json({ message: 'Required fields missing' });
+        }
+
+        await UserModel.updateOne({
+            _id: new ObjectId(reqUser._id),
+            "devices._id": new ObjectId(device_id),
+        }, {
+            $set: {
+                "devices.$.deleted_on": new Date()
+            }
+        });
+
+        return res.sendStatus(200);
+    } catch (err) {
+        return next(err);
+    }
+}
+
 module.exports = {
     create,
     login,
-    index,
+    getDevices,
     addDevice,
-    commandDevice
+    commandDevice,
+    deleteDevice,
 };
