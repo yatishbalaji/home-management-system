@@ -1,6 +1,8 @@
 const _ = require('lodash');
+const { ObjectId } = require('mongoose').Types;
 
 const UserModel = require('./user.model');
+const { runCommand } = require('../../components/connectSensors');
 
 async function create(req, res, next) {
     try {
@@ -55,7 +57,7 @@ async function index(req, res, next) {
     try {
         const reqUser = req.user;
 
-        const users = await UserModel.find({
+        const users = await UserModel.findOne({
             _id: reqUser._id
         })
             .select({ devices: 1 });
@@ -66,8 +68,76 @@ async function index(req, res, next) {
     }
 }
 
+async function addDevice(req, res, next) {
+    try {
+        const reqUser = req.user;
+
+        const {
+            name, type, state = 'Sync Required',
+        } = req.body;
+
+        if (!name || !type) {
+            return res.status(412).json({ message: 'Required fields missing' });
+        }
+
+        await UserModel.update({
+            _id: new ObjectId(reqUser._id),
+        }, {
+            $push: {
+                devices: {
+                    _id: new ObjectId(),
+                    name, type, state,
+                }
+            },
+        });
+
+        return res.sendStatus(201);
+    } catch (err) {
+        return next(err);
+    }
+}
+
+async function commandDevice(req, res, next) {
+    try {
+        const reqUser = req.user;
+
+        const {
+            device_id,
+            command
+        } = req.body;
+
+        if (!device_id || !command) {
+            return res.status(412).json({ message: 'Required fields missing' });
+        }
+
+        const deviceId = new ObjectId(device_id);
+        const state = await runCommand(deviceId, command);
+
+        await UserModel.updateOne({
+            _id: new ObjectId(reqUser._id),
+            "devices._id": deviceId,
+        }, {
+            $push: {
+                device_operations: {
+                    device_id: deviceId,
+                    command,
+                },
+            },
+            $set: {
+                "devices.$.state": state
+            }
+        });
+
+        return res.sendStatus(200);
+    } catch (err) {
+        return next(err);
+    }
+}
+
 module.exports = {
     create,
     login,
     index,
+    addDevice,
+    commandDevice
 };
